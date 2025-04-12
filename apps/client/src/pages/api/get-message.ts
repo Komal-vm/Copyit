@@ -21,11 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const db = client.db();
     const messagesCollection = db.collection('messages');
 
-    console.log(`🔍 Looking for token: ${token}`);
+    // console.log(`🔍 Looking for token: ${token}`);
    
 
     const found = await messagesCollection.find({}).toArray();
-console.log("🧠 All tokens in DB:", found.map(f => f.token));
+// console.log("🧠 All tokens in DB:", found.map(f => f.token));
 
     const record = await messagesCollection.findOne({ token });
     console.log(record)
