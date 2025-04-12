@@ -1,11 +1,7 @@
-import { type JSX } from "react";
 
-export function Code({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}): JSX.Element {
-  return <code className={className}>{children}</code>;
+
+export function Code(){
+  return <div>
+     <h1>hello</h1>
+  </div>
 }
