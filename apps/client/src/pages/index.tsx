@@ -15,7 +15,7 @@ export default function Home() {
   const sendMessage = async () => {
     setError("");
     try {
-      const res = await fetch("/api/store-message", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),

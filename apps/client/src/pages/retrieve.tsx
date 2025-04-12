@@ -12,7 +12,7 @@ export default function RetrievePage() {
 
     const fetchMessage = async () => {
       try {
-        const res = await fetch(`/api/get-message?token=${encodeURIComponent(token)}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/get-message?token=${encodeURIComponent(token)}`);
         const data = await res.json();
 
         if (res.ok) {
