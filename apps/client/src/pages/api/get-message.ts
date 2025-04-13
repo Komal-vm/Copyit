@@ -48,23 +48,24 @@
 //   }
 // }
 import type { NextApiRequest, NextApiResponse } from 'next';
-import Cors from 'cors'
+import Cors from 'cors';
 import clientPromise from '../../lib/mongodb';
 
-// Wrap CORS as a Promise manually
+// Manual CORS function (no external helpers)
 const runCors = (req: NextApiRequest, res: NextApiResponse) =>
   new Promise<void>((resolve, reject) => {
     Cors({
-      methods: ['GET'],
-      origin: '*', // Change this to your frontend URL in prod
-    })(req, res, (result: any) => {
+      methods: ['GET', 'POST'], // Add other methods as needed
+      origin: 'https://copyit-alpha.vercel.app', // Allow your frontend domain
+      allowedHeaders: ['Content-Type'], // Optional: Specify any headers you need to allow
+      credentials: true, // If you're passing cookies or authentication tokens
+    })(req, res, (result) => {
       if (result instanceof Error) return reject(result);
       return resolve();
     });
   });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Run CORS manually
   try {
     await runCors(req, res);
   } catch (err) {
@@ -89,7 +90,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const messagesCollection = db.collection('messages');
 
     const record = await messagesCollection.findOne({ token });
-    console.log(record);
 
     if (!record) {
       console.log("❌ Message not found for token:", token);
