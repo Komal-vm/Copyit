@@ -51,40 +51,56 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import Cors from 'cors';
 import clientPromise from '../../lib/mongodb';
 
-// Manual CORS function (no external helpers)
-const runCors = (req: NextApiRequest, res: NextApiResponse) =>
-  new Promise<void>((resolve, reject) => {
-    Cors({
-      methods: ['GET', 'POST'], // Add other methods as needed
-      origin: 'https://copyit-alpha.vercel.app', // Allow your frontend domain
-      allowedHeaders: ['Content-Type'], // Optional: Specify any headers you need to allow
-      credentials: true, // If you're passing cookies or authentication tokens
-    })(req, res, (result) => {
-      if (result instanceof Error) return reject(result);
-      return resolve();
+// Initialize CORS middleware
+const cors = Cors({
+  methods: ['GET', 'OPTIONS'], // Only allow GET and OPTIONS (for preflight)
+  origin: [
+    'https://copyit-alpha.vercel.app',
+    'http://localhost:3000' // Add localhost for development
+  ],
+  allowedHeaders: ['Content-Type'],
+  credentials: true
+});
+
+// Helper to run middleware
+const runMiddleware = (req: NextApiRequest, res: NextApiResponse, fn: Function) => 
+  new Promise((resolve, reject) => {
+    fn(req, res, (result: any) => {
+      if (result instanceof Error) {
+        return reject(result);
+      }
+      return resolve(result);
     });
   });
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
-    await runCors(req, res);
-  } catch (err) {
-    return res.status(500).json({ error: 'CORS error' });
-  }
+    // Run CORS middleware
+    await runMiddleware(req, res, cors);
+    
+    // Handle OPTIONS request (CORS preflight)
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+    // Only allow GET requests
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', ['GET', 'OPTIONS']);
+      return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    }
 
-  const rawToken = req.query.token;
-  const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
-  console.log("🔍 Normalized token:", token);
+    // Validate token
+    const rawToken = req.query.token;
+    const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+    
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Invalid or missing token' });
+    }
 
-  if (!token || typeof token !== 'string') {
-    return res.status(400).json({ error: 'Invalid or missing token' });
-  }
-
-  try {
+    // Database operations
     const client = await clientPromise;
     const db = client.db();
     const messagesCollection = db.collection('messages');
@@ -92,18 +108,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const record = await messagesCollection.findOne({ token });
 
     if (!record) {
-      console.log("❌ Message not found for token:", token);
       return res.status(404).json({ error: 'Message not found' });
     }
 
+    // Check expiration
     if (Date.now() > record.expiresAt) {
       await messagesCollection.deleteOne({ token });
       return res.status(410).json({ error: 'Message expired' });
     }
 
+    // Success response
     return res.status(200).json({ message: record.message });
+
   } catch (error) {
-    console.error("🔥 DB fetch error:", error);
-    return res.status(500).json({ error: 'Database error' });
+    console.error('API Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
